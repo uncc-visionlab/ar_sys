@@ -9,6 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
 	roscpp
 	tf
 	visualization_msgs
+        aruco
 )
 
 ###################################
@@ -33,19 +34,6 @@ include_directories(
 )
 
 ## Declare a cpp library
-add_library(aruco
-	src/aruco/arucofidmarkers.cpp
-	src/aruco/cvdrawingutils.cpp
-	src/aruco/cameraparameters.cpp
-	src/aruco/board.cpp
-	src/aruco/marker.cpp
-	src/aruco/boarddetector.cpp
-	src/aruco/markerdetector.cpp
-	src/aruco/ar_omp.cpp
-	src/aruco/subpixelcorner.cpp
-)
-target_link_libraries(aruco ${catkin_LIBRARIES})
-
 add_executable(single_board src/single_board.cpp
 	src/utils.cpp)
 add_dependencies(single_board ${catkin_EXPORTED_TARGETS})
@@ -75,7 +63,7 @@ install(DIRECTORY launch/
 	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
 	FILES_MATCHING PATTERN "*.launch"
 )
-install(TARGETS aruco single_board multi_boards system_viewer
+install(TARGETS single_board multi_boards system_viewer
 	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
