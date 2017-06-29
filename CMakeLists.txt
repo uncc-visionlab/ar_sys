@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(ar_sys)
 
+set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
+
 find_package(catkin REQUIRED COMPONENTS
 	cv_bridge
 	dynamic_reconfigure
@@ -9,8 +11,9 @@ find_package(catkin REQUIRED COMPONENTS
 	roscpp
 	tf
 	visualization_msgs
-        aruco
 )
+
+find_package(OpenCV REQUIRED)
 
 ###################################
 ## catkin specific configuration ##
@@ -23,30 +26,30 @@ find_package(catkin REQUIRED COMPONENTS
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 	INCLUDE_DIRS include
-	LIBRARIES aruco
 	CATKIN_DEPENDS cv_bridge dynamic_reconfigure geometry_msgs image_transport visualization_msgs roscpp tf
-#	DEPENDS system_lib
+	DEPENDS OpenCV
 )
 
 include_directories(
 	include
 	${catkin_INCLUDE_DIRS}
+        ${OpenCV_INCLUDE_DIRS}
 )
 
 ## Declare a cpp library
 add_executable(single_board src/single_board.cpp
 	src/utils.cpp)
 add_dependencies(single_board ${catkin_EXPORTED_TARGETS})
-target_link_libraries(single_board aruco ${catkin_LIBRARIES})
+target_link_libraries(single_board ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 
 add_executable(multi_boards src/multi_boards.cpp
 	src/utils.cpp)
 add_dependencies(multi_boards ${catkin_EXPORTED_TARGETS})
-target_link_libraries(multi_boards aruco ${catkin_LIBRARIES})
+target_link_libraries(multi_boards ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 
 add_executable(system_viewer src/system_viewer.cpp)
 add_dependencies(system_viewer ${catkin_EXPORTED_TARGETS})
-target_link_libraries(system_viewer ${catkin_LIBRARIES})
+target_link_libraries(system_viewer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 
 install(DIRECTORY include/
 	DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}
