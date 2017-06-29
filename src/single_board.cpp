@@ -18,6 +18,8 @@
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
 
+#include <opencv2/aruco.hpp>
+
 #include <ar_sys/utils.h>
 
 class ArSysSingleBoard : public ar_sys {
@@ -37,7 +39,7 @@ private:
     ros::Publisher transform_pub;
     ros::Publisher position_pub;
     std::string board_frame;
-
+    int nMarkers, nMarkerDetectThreshold;
     double marker_size_m;
     std::string board_config;
     double board_scale;
@@ -56,7 +58,7 @@ public:
 
     ArSysSingleBoard() : cam_info_received(false),
     nh("~"),
-    it(nh) {
+    it(nh), nMarkers(0), nMarkerDetectThreshold(0) {
         image_sub = it.subscribe("/image", 1, &ArSysSingleBoard::image_callback, this);
         cam_info_sub = nh.subscribe("/camera_info", 1, &ArSysSingleBoard::cam_info_callback, this);
 
@@ -78,9 +80,21 @@ public:
         cv::aruco::PREDEFINED_DICTIONARY_NAME dictionaryId = cv::aruco::DICT_ARUCO_ORIGINAL;
         dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::PREDEFINED_DICTIONARY_NAME(dictionaryId));
         detectorParams = cv::aruco::DetectorParameters::create();
+        detectorParams->doCornerRefinement = true; // do corner refinement in markers
+        detectorParams->cornerRefinementWinSize = 10; // do corner refinement in markers
+        detectorParams->cornerRefinementMaxIterations = 30; // do corner refinement in markers
+
         //the_board_config.readFromFile(board_config.c_str());
+        readBoard();
+        int minMarkers = std::min(4,nMarkers);
+        nMarkerDetectThreshold = std::max(minMarkers,nMarkers/2);
+        ROS_INFO("ArSys node started with marker size of %f m and board configuration: %s",
+                marker_size_m, board_config.c_str());
+    }
+
+    void readBoard() {
         cv::FileStorage fs(board_config, cv::FileStorage::READ);
-        float nMarkers, mInfoType;
+        float mInfoType;
         cv::Mat markers;
         cv::FileNode nmarkers = fs["aruco_bc_nmarkers"];
         cv::read(nmarkers, nMarkers, 0);
@@ -117,12 +131,10 @@ public:
             markercorners *= marker_size_m / markerSideLength_pixels; // convert to m
             idcorners.push_back(markercorners);
         }
-        board_scale = sqrt(nMarkers/2);
+        board_scale = sqrt(nMarkers / 2);
         //for (cv::Mat cornerVals : idcorners) 
         //        std::cout << "id corners " << cornerVals << std::endl;
         board = cv::aruco::Board::create(idcorners, dictionary, ids);
-        ROS_INFO("ArSys node started with marker size of %f m and board configuration: %s",
-                marker_size_m, board_config.c_str());
     }
 
     void image_callback(const sensor_msgs::ImageConstPtr& msg) {
@@ -135,7 +147,7 @@ public:
             cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::RGB8);
             inImage = cv_ptr->image;
 
-            bool refindStrategy = true;
+            bool refindStrategy = false;
             std::vector< int > ids;
             std::vector< std::vector< cv::Point2f > > corners, rejected;
             cv::Vec3d rvec, tvec;
@@ -150,7 +162,7 @@ public:
             }
             // estimate board pose
             int markersOfBoardDetected = 0;
-            if (ids.size() > 0) {
+            if (ids.size() > nMarkerDetectThreshold) {
                 markersOfBoardDetected =
                         cv::aruco::estimatePoseBoard(corners, ids, board, cameraMatrix, distortionCoeffs, rvec, tvec);
 
@@ -183,15 +195,15 @@ public:
                 cv::aruco::drawDetectedMarkers(resultImg, corners, ids);
             }
             if (ids.size() > 0) {
-                std::cout << "board scale " << board_scale << std::endl;
+                //std::cout << "board scale " << board_scale << std::endl;
                 if (draw_markers_axis) {
-                    cv::aruco::drawAxis(resultImg, cameraMatrix, distortionCoeffs, 
-                            rvec, tvec, 1.25*marker_size_m);
+                    //cv::aruco::drawAxis(resultImg, cameraMatrix, distortionCoeffs,
+                    //        rvec, tvec, 2 * marker_size_m);
                 }
                 //cv::Size outSize(marker_size_m*scale, marker_size_m * scale);
                 //cv::aruco::drawPlanarBoard(board, outSize, resultImg);
             }
-            //                    if (draw_markers_cube) CvDrawingUtils::draw3dCube(resultImg, markers[i], camParam);
+
             if (image_pub.getNumSubscribers() > 0) {
                 //show input with augmented information
                 cv_bridge::CvImage out_msg;

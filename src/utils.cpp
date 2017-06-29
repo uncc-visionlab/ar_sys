@@ -49,7 +49,7 @@ tf::Transform ar_sys::getTf(const cv::Vec3d &rvec, const cv::Vec3d &tvec) {
     cv::Mat rot;
     cv::Rodrigues(rvec, rot);
     //std::cout << "rtype " << rot.type() << " rsys " << rotate_to_sys.type() << std::endl;
-    //std::cout << "rvec " << rvec << " tvec " << tvec << " rot " << rot <<std::endl;
+    std::cout << "rvec " << rvec << " tvec " << tvec << std::endl; //<< " rot " << rot <<std::endl;
     rot = rot * rotate_to_sys;
     //rot = rot * rotate_to_sys.t();
     tf::Matrix3x3 tf_rot(rot.at<float>(0, 0), rot.at<float>(0, 1), rot.at<float>(0, 2),
