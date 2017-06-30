@@ -2,6 +2,11 @@
 Changelog for package ar_sys
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.0.5 (2017-06-29)
+------------------
+* Ported to OpenCV 3.2.0
+* Contributors: Andrew Willis
+
 1.0.5 (2014-09-30)
 ------------------
 * Added arguments to launch files

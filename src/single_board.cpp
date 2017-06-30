@@ -86,8 +86,8 @@ public:
 
         //the_board_config.readFromFile(board_config.c_str());
         readBoard();
-        int minMarkers = std::min(4,nMarkers);
-        nMarkerDetectThreshold = std::max(minMarkers,nMarkers/2);
+        int minMarkers = std::min(4, nMarkers);
+        nMarkerDetectThreshold = std::max(minMarkers, nMarkers / 2);
         ROS_INFO("ArSys node started with marker size of %f m and board configuration: %s",
                 marker_size_m, board_config.c_str());
     }
@@ -166,42 +166,41 @@ public:
                 markersOfBoardDetected =
                         cv::aruco::estimatePoseBoard(corners, ids, board, cameraMatrix, distortionCoeffs, rvec, tvec);
 
-                tf::Transform transform = getTf(rvec, tvec);
+                tf::Transform transform;
+                transform.setIdentity();
+                bool validTransform = getTf(rvec, tvec, transform);
+                if (validTransform) {
+                    tf::StampedTransform stampedTransform(transform, msg->header.stamp, msg->header.frame_id, board_frame);
 
-                tf::StampedTransform stampedTransform(transform, msg->header.stamp, msg->header.frame_id, board_frame);
+                    if (publish_tf)
+                        br.sendTransform(stampedTransform);
 
-                if (publish_tf)
-                    br.sendTransform(stampedTransform);
+                    geometry_msgs::PoseStamped poseMsg;
+                    tf::poseTFToMsg(transform, poseMsg.pose);
+                    poseMsg.header.frame_id = msg->header.frame_id;
+                    poseMsg.header.stamp = msg->header.stamp;
+                    pose_pub.publish(poseMsg);
 
-                geometry_msgs::PoseStamped poseMsg;
-                tf::poseTFToMsg(transform, poseMsg.pose);
-                poseMsg.header.frame_id = msg->header.frame_id;
-                poseMsg.header.stamp = msg->header.stamp;
-                pose_pub.publish(poseMsg);
+                    geometry_msgs::TransformStamped transformMsg;
+                    tf::transformStampedTFToMsg(stampedTransform, transformMsg);
+                    transform_pub.publish(transformMsg);
 
-                geometry_msgs::TransformStamped transformMsg;
-                tf::transformStampedTFToMsg(stampedTransform, transformMsg);
-                transform_pub.publish(transformMsg);
-
-                geometry_msgs::Vector3Stamped positionMsg;
-                positionMsg.header = transformMsg.header;
-                positionMsg.vector = transformMsg.transform.translation;
-                position_pub.publish(positionMsg);
+                    geometry_msgs::Vector3Stamped positionMsg;
+                    positionMsg.header = transformMsg.header;
+                    positionMsg.vector = transformMsg.transform.translation;
+                    position_pub.publish(positionMsg);
+                }
             }
             //for each marker, draw info and its boundaries in the image
             //image.copyTo(imageCopy);
             resultImg = cv_ptr->image.clone();
-            if (ids.size() > 0) {
+            if (ids.size() > 0 && draw_markers) {
                 cv::aruco::drawDetectedMarkers(resultImg, corners, ids);
             }
-            if (ids.size() > 0) {
+            if (ids.size() > 0 && draw_markers_axis) {
                 //std::cout << "board scale " << board_scale << std::endl;
-                if (draw_markers_axis) {
-                    //cv::aruco::drawAxis(resultImg, cameraMatrix, distortionCoeffs,
-                    //        rvec, tvec, 2 * marker_size_m);
-                }
-                //cv::Size outSize(marker_size_m*scale, marker_size_m * scale);
-                //cv::aruco::drawPlanarBoard(board, outSize, resultImg);
+                cv::aruco::drawAxis(resultImg, cameraMatrix, distortionCoeffs,
+                        rvec, tvec, board_scale * marker_size_m);
             }
 
             if (image_pub.getNumSubscribers() > 0) {
