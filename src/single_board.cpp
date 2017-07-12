@@ -56,7 +56,7 @@ private:
 
 public:
 
-    ArSysSingleBoard() : cam_info_received(false),
+    ArSysSingleBoard() : ar_sys(), cam_info_received(false),
     nh("~"),
     it(nh), nMarkers(0), nMarkerDetectThreshold(0) {
         image_sub = it.subscribe("/image", 1, &ArSysSingleBoard::image_callback, this);
@@ -150,8 +150,9 @@ public:
             bool refindStrategy = false;
             std::vector< int > ids;
             std::vector< std::vector< cv::Point2f > > corners, rejected;
-            cv::Vec3d rvec, tvec;
-
+            static cv::Vec3d tvec(0, 0, 1);
+            cv::Vec3d rvec(0, 0, 0);
+            
             // detect markers
             cv::aruco::detectMarkers(inImage, dictionary, corners, ids, detectorParams, rejected);
 
@@ -162,42 +163,46 @@ public:
             }
             // estimate board pose
             int markersOfBoardDetected = 0;
-            if (ids.size() > nMarkerDetectThreshold) {
-                markersOfBoardDetected =
-                        cv::aruco::estimatePoseBoard(corners, ids, board, cameraMatrix, distortionCoeffs, rvec, tvec);
-
-                tf::Transform transform;
-                transform.setIdentity();
-                bool validTransform = getTf(rvec, tvec, transform);
-                if (validTransform) {
-                    tf::StampedTransform stampedTransform(transform, msg->header.stamp, msg->header.frame_id, board_frame);
-
-                    if (publish_tf)
-                        br.sendTransform(stampedTransform);
-
-                    geometry_msgs::PoseStamped poseMsg;
-                    tf::poseTFToMsg(transform, poseMsg.pose);
-                    poseMsg.header.frame_id = msg->header.frame_id;
-                    poseMsg.header.stamp = msg->header.stamp;
-                    pose_pub.publish(poseMsg);
-
-                    geometry_msgs::TransformStamped transformMsg;
-                    tf::transformStampedTFToMsg(stampedTransform, transformMsg);
-                    transform_pub.publish(transformMsg);
-
-                    geometry_msgs::Vector3Stamped positionMsg;
-                    positionMsg.header = transformMsg.header;
-                    positionMsg.vector = transformMsg.transform.translation;
-                    position_pub.publish(positionMsg);
-                }
+            if (ids.size() <= nMarkerDetectThreshold) {
+                return;
             }
+            markersOfBoardDetected =
+                    cv::aruco::estimatePoseBoard(corners, ids, board, cameraMatrix, distortionCoeffs, rvec, tvec);
+
+            tf::Transform transform;
+            transform.setIdentity();
+            bool validTransform = getTf(rvec, tvec, transform);
+            if (!validTransform) {
+                return;
+            }
+
+            tf::StampedTransform stampedTransform(transform, msg->header.stamp, msg->header.frame_id, board_frame);
+
+            if (publish_tf)
+                br.sendTransform(stampedTransform);
+
+            geometry_msgs::PoseStamped poseMsg;
+            tf::poseTFToMsg(transform, poseMsg.pose);
+            poseMsg.header.frame_id = msg->header.frame_id;
+            poseMsg.header.stamp = msg->header.stamp;
+            pose_pub.publish(poseMsg);
+
+            geometry_msgs::TransformStamped transformMsg;
+            tf::transformStampedTFToMsg(stampedTransform, transformMsg);
+            transform_pub.publish(transformMsg);
+
+            geometry_msgs::Vector3Stamped positionMsg;
+            positionMsg.header = transformMsg.header;
+            positionMsg.vector = transformMsg.transform.translation;
+            position_pub.publish(positionMsg);
+
             //for each marker, draw info and its boundaries in the image
             //image.copyTo(imageCopy);
             resultImg = cv_ptr->image.clone();
-            if (ids.size() > 0 && draw_markers) {
+            if (draw_markers) {
                 cv::aruco::drawDetectedMarkers(resultImg, corners, ids);
             }
-            if (ids.size() > 0 && draw_markers_axis) {
+            if (draw_markers_axis) {
                 //std::cout << "board scale " << board_scale << std::endl;
                 cv::aruco::drawAxis(resultImg, cameraMatrix, distortionCoeffs,
                         rvec, tvec, board_scale * marker_size_m);

@@ -50,7 +50,7 @@ bool ar_sys::getTf(const cv::Vec3d &rvec, const cv::Vec3d &tvec, tf::Transform &
     cv::Rodrigues(rvec, rot);
     //std::cout << "rtype " << rot.type() << " rsys " << rotate_to_sys.type() << std::endl;
     //std::cout << "rvec " << rvec << " tvec " << tvec << std::endl; //<< " rot " << rot <<std::endl;
-    rot = rot * rotate_to_sys;
+    //rot = rot * rotate_to_sys;
     //rot = rot * rotate_to_sys.t();
     tf::Matrix3x3 tf_rot(rot.at<float>(0, 0), rot.at<float>(0, 1), rot.at<float>(0, 2),
             rot.at<float>(1, 0), rot.at<float>(1, 1), rot.at<float>(1, 2),
@@ -58,11 +58,15 @@ bool ar_sys::getTf(const cv::Vec3d &rvec, const cv::Vec3d &tvec, tf::Transform &
     tf::Quaternion quat;
     tf_rot.getRotation(quat);
     quat.normalize();
-    if (fabs(quat.length2()-1.0) > 1e-5) {
+    if (fabs(quat.length2() - 1.0) > 1e-5 || std::isnan(quat.getX())) {
         return false; // failure
     }
     //tf_rot.setRotation(quat);
     tf::Vector3 tf_orig(tvec[0], tvec[1], tvec[2]);
+    //std::cout << "quat (" << quat.getX() << ", " << quat.getY()
+    //        << ", " << quat.getZ() << ", " << quat.getW() << ") "
+    //        << " tf_orig " << tf_orig.getX() << ", "
+    //        << tf_orig.getY() << ", " << tf_orig.getZ() << ") " << std::endl;
     tfVal.setRotation(quat);
     tfVal.setOrigin(tf_orig);
     return true;

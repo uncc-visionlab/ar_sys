@@ -67,7 +67,7 @@ private:
 public:
 
     ArSysMultiBoards() :
-    cam_info_received(false),
+    ar_sys(), cam_info_received(false),
     nh("~"),
     it(nh) {
         image_sub = it.subscribe("/image", 1, &ArSysMultiBoards::image_callback, this);

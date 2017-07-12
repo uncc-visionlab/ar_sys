@@ -62,7 +62,7 @@ private:
 public:
 
     ArSysViewer()
-    : nh("~") {
+    : ar_sys(), nh("~") {
         transform_sub = nh.subscribe("/transform", 1, &ArSysViewer::transform_callback, this);
 
         transform_pub = nh.advertise<geometry_msgs::TransformStamped>("transform", 100);
