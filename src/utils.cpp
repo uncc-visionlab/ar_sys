@@ -52,9 +52,9 @@ bool ar_sys::getTf(const cv::Vec3d &rvec, const cv::Vec3d &tvec, tf::Transform &
     //std::cout << "rvec " << rvec << " tvec " << tvec << std::endl; //<< " rot " << rot <<std::endl;
     //rot = rot * rotate_to_sys;
     //rot = rot * rotate_to_sys.t();
-    tf::Matrix3x3 tf_rot(rot.at<float>(0, 0), rot.at<float>(0, 1), rot.at<float>(0, 2),
-            rot.at<float>(1, 0), rot.at<float>(1, 1), rot.at<float>(1, 2),
-            rot.at<float>(2, 0), rot.at<float>(2, 1), rot.at<float>(2, 2));
+    tf::Matrix3x3 tf_rot(rot.at<double>(0, 0), rot.at<double>(0, 1), rot.at<double>(0, 2),
+            rot.at<double>(1, 0), rot.at<double>(1, 1), rot.at<double>(1, 2),
+            rot.at<double>(2, 0), rot.at<double>(2, 1), rot.at<double>(2, 2));
     tf::Quaternion quat;
     tf_rot.getRotation(quat);
     quat.normalize();

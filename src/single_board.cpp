@@ -28,7 +28,7 @@
 namespace cv {
     namespace aruco {
 
-        void getBoardObjectAndImagePoints(const Ptr<Board> &board, InputArrayOfArrays detectedCorners,
+        void getBoardObjectAndImagePointsCustom(const Ptr<Board> &board, InputArrayOfArrays detectedCorners,
                 InputArray detectedIds, OutputArray objPoints, OutputArray imgPoints) {
 
             CV_Assert(board->ids.size() == board->objPoints.size());
@@ -70,7 +70,7 @@ namespace cv {
 
             // get object and image points for the solvePnP function
             Mat objPoints, imgPoints;
-            getBoardObjectAndImagePoints(board, _corners, _ids, objPoints, imgPoints);
+            getBoardObjectAndImagePointsCustom(board, _corners, _ids, objPoints, imgPoints);
 
             CV_Assert(imgPoints.total() == objPoints.total());
 
@@ -144,7 +144,15 @@ public:
         cv::aruco::PREDEFINED_DICTIONARY_NAME dictionaryId = cv::aruco::DICT_ARUCO_ORIGINAL;
         dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::PREDEFINED_DICTIONARY_NAME(dictionaryId));
         detectorParams = cv::aruco::DetectorParameters::create();
+
+#ifdef OPENCV_3_2
         detectorParams->doCornerRefinement = true; // do corner refinement in markers
+#endif
+        
+#ifdef OPENCV_3_3
+        detectorParams->cornerRefinementMethod = cv::aruco::CORNER_REFINE_SUBPIX;
+#endif
+        
         detectorParams->cornerRefinementWinSize = 10; // do corner refinement in markers
         detectorParams->cornerRefinementMaxIterations = 30; // do corner refinement in markers
 

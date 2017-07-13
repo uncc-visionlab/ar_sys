@@ -14,6 +14,22 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 find_package(OpenCV REQUIRED)
+MESSAGE( STATUS "Found OpenCV_VERSION: " ${OpenCV_VERSION})
+MESSAGE( STATUS "Found OpenCV_VERSION_MAJOR: " ${OpenCV_VERSION_MAJOR})
+MESSAGE( STATUS "Found OpenCV_VERSION_MINOR: " ${OpenCV_VERSION_MINOR})
+if (OpenCV_VERSION_MAJOR VERSION_EQUAL "3")
+    if (OpenCV_VERSION_MINOR VERSION_EQUAL "2")
+        MESSAGE( STATUS "Setting OPENCV3_2 define -DOPENCV3_2=1")
+        add_definitions("-DOPENCV3_2=1")
+    else() 
+        MESSAGE( STATUS "Setting OPENCV3_3 define -DOPENCV3_3=1")
+        add_definitions("-DOPENCV3_3=1")
+    endif()
+else()
+  MESSAGE( STATUS "Found OpenCV_VERSION: " ${OpenCV_VERSION})
+  MESSAGE( STATUS "Found OpenCV_VERSION_MAJOR: " ${OpenCV_VERSION_MAJOR})
+  MESSAGE(FATAL_ERROR "OpenCV >= 3.0 is required to build this package.")
+endif()
 
 ###################################
 ## catkin specific configuration ##
