@@ -10,17 +10,81 @@
 #include <fstream>
 #include <sstream>
 
-#include <opencv2/core/core.hpp>
 #include <ros/ros.h>
 #include <image_transport/image_transport.h>
-#include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
+
+#include <cv_bridge/cv_bridge.h>
+
+#include <opencv2/aruco.hpp>
+#include <opencv2/core.hpp>
+#include <opencv2/calib3d.hpp>
+
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
 
-#include <opencv2/aruco.hpp>
-
 #include <ar_sys/utils.h>
+
+namespace cv {
+    namespace aruco {
+
+        void getBoardObjectAndImagePoints(const Ptr<Board> &board, InputArrayOfArrays detectedCorners,
+                InputArray detectedIds, OutputArray objPoints, OutputArray imgPoints) {
+
+            CV_Assert(board->ids.size() == board->objPoints.size());
+            CV_Assert(detectedIds.total() == detectedCorners.total());
+
+            size_t nDetectedMarkers = detectedIds.total();
+
+            std::vector< Point3f > objPnts;
+            objPnts.reserve(nDetectedMarkers);
+
+            std::vector< Point2f > imgPnts;
+            imgPnts.reserve(nDetectedMarkers);
+
+            // look for detected markers that belong to the board and get their information
+            for (unsigned int i = 0; i < nDetectedMarkers; i++) {
+                int currentId = detectedIds.getMat().ptr< int >(0)[i];
+                for (unsigned int j = 0; j < board->ids.size(); j++) {
+                    if (currentId == board->ids[j]) {
+                        for (int p = 0; p < 4; p++) {
+                            objPnts.push_back(board->objPoints[j][p]);
+                            imgPnts.push_back(detectedCorners.getMat(i).ptr< Point2f >(0)[p]);
+                        }
+                    }
+                }
+            }
+
+            // create output
+            Mat(objPnts).copyTo(objPoints);
+            Mat(imgPnts).copyTo(imgPoints);
+        }
+
+        /**
+         */
+        int estimatePoseBoardCustom(InputArrayOfArrays _corners, InputArray _ids, const Ptr<Board> &board,
+                InputArray _cameraMatrix, InputArray _distCoeffs, OutputArray _rvec,
+                OutputArray _tvec, bool useExtrinsicGuess) {
+            //std::cout << "Calling my estimatePoseBoard!" << std::endl;
+            CV_Assert(_corners.total() == _ids.total());
+
+            // get object and image points for the solvePnP function
+            Mat objPoints, imgPoints;
+            getBoardObjectAndImagePoints(board, _corners, _ids, objPoints, imgPoints);
+
+            CV_Assert(imgPoints.total() == objPoints.total());
+
+            if (objPoints.total() == 0) // 0 of the detected markers in board
+                return 0;
+
+            solvePnP(objPoints, imgPoints, _cameraMatrix, _distCoeffs, _rvec, _tvec, useExtrinsicGuess);
+
+            // divide by four since all the four corners are concatenated in the array for each marker
+            return (int) objPoints.total() / 4;
+        }
+
+    }
+}
 
 class ArSysSingleBoard : public ar_sys {
 private:
@@ -150,9 +214,10 @@ public:
             bool refindStrategy = false;
             std::vector< int > ids;
             std::vector< std::vector< cv::Point2f > > corners, rejected;
-            static cv::Vec3d tvec(0, 0, 1);
+            cv::Vec3d tvec(0, 0, 1);
             cv::Vec3d rvec(0, 0, 0);
-            
+            cv::Mat guessRotMat = (cv::Mat_<double>(3, 3) << 1, 0, 0, 0, 1, 0, 0, 0, 1);
+            cv::Rodrigues(guessRotMat, rvec);
             // detect markers
             cv::aruco::detectMarkers(inImage, dictionary, corners, ids, detectorParams, rejected);
 
@@ -166,8 +231,60 @@ public:
             if (ids.size() <= nMarkerDetectThreshold) {
                 return;
             }
+            //            markersOfBoardDetected =
+            //                    cv::aruco::estimatePoseBoardCustom(corners, ids, board, cameraMatrix, distortionCoeffs, rvec, tvec);
+            //std::cout << "rvec_guess " << rvec << " tvec_guess " << tvec << std::endl;
             markersOfBoardDetected =
-                    cv::aruco::estimatePoseBoard(corners, ids, board, cameraMatrix, distortionCoeffs, rvec, tvec);
+                    cv::aruco::estimatePoseBoardCustom(corners, ids, board, cameraMatrix, distortionCoeffs, rvec, tvec, true);
+
+            cv::Mat rotMat;
+            cv::Rodrigues(rvec, rotMat);
+            cv::Mat eZ = (cv::Mat_<double>(3, 1) << 0.0, 0.0, 1.0);
+            cv::Mat eZ_prime = rotMat*eZ;
+            //std::cout << "rvec " << rvec << " tvec " << tvec << " eZ_prime " << eZ_prime << std::endl;
+            //            std::cout << "det(rotMat) " << cv::determinant(rotMat) << std::endl;
+            //            std::cout << "x " << rotMat.row(0) << std::endl;
+            //            std::cout << "y " << rotMat.row(1) << std::endl;
+            //            std::cout << "z " << rotMat.row(2) << std::endl;
+            if (tvec[2] < 0) {
+                std::cout << "cv::solvePnP converged to invalid transform translation z = " << tvec[2] <<
+                        " when, in reality we must assert, z > 0." << std::endl;
+                return;
+            }
+            if (eZ_prime.at<double>(2,0) > 0) {
+                // flip y and z
+                rotMat.at<double>(0, 1) *= -1.0;
+                rotMat.at<double>(1, 1) *= -1.0;
+                rotMat.at<double>(2, 1) *= -1.0;
+                rotMat.at<double>(0, 2) *= -1.0;
+                rotMat.at<double>(1, 2) *= -1.0;
+                rotMat.at<double>(2, 2) *= -1.0;
+                eZ = (cv::Mat_<double>(3, 1) << 0.0, 0.0, 1.0);
+                eZ_prime = rotMat*eZ;
+                if (eZ_prime.at<double>(2,0) > 0) {
+                    // flip y again 
+                    rotMat.at<double>(0, 1) *= -1.0;
+                    rotMat.at<double>(1, 1) *= -1.0;
+                    rotMat.at<double>(2, 1) *= -1.0;
+                    // flip x and z (z is already flipped from above)
+                    rotMat.at<double>(0, 0) *= -1.0;
+                    rotMat.at<double>(1, 0) *= -1.0;
+                    rotMat.at<double>(2, 0) *= -1.0;
+                    //std::cout << "Different fix via XZ-flip applied." << std::endl;
+                } else {
+                    //std::cout << "fix via YZ-flip applied." << std::endl;
+                }
+                eZ = (cv::Mat_<double>(3, 1) << 0.0, 0.0, 1.0);
+                eZ_prime = rotMat*eZ;
+                //std::cout << "rvec_mod " << rvec << " tvec_mod " << tvec << " eZ_prime_mod " << eZ_prime << std::endl;
+                cv::Rodrigues(rotMat, rvec);
+                //                std::cout << "det(rotMat_mod) " << cv::determinant(rotMat) << std::endl;
+                //                std::cout << "rvec_mod " << rvec << " tvec_mod " << tvec << std::endl;
+                //                std::cout << "x_mod " << rotMat.row(0) << std::endl;
+                //                std::cout << "y_mod " << rotMat.row(1) << std::endl;
+                //                std::cout << "z_mod " << rotMat.row(2) << std::endl;
+            }
+
 
             tf::Transform transform;
             transform.setIdentity();
