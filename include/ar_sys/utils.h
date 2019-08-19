@@ -3,14 +3,14 @@
 
 #include <opencv2/aruco.hpp>
 
-//#include "aruco/aruco.h"
+#include <ar_sys/ArucoCornerMsg.h>
 #include <sensor_msgs/CameraInfo.h>
 #include <tf/transform_datatypes.h>
 
-class ar_sys {
+class ARSYS {
 public:
 
-    ar_sys() {
+    ARSYS() {
         rotate_to_sys = cv::Mat::zeros(3, 3, CV_64FC1);
         /* Fixed the rotation to meet the ROS system
         /* Doing a basic rotation around X with theta=PI

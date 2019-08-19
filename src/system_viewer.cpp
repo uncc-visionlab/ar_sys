@@ -45,7 +45,7 @@ struct camera_t {
     tf::Transform transform;
 };
 
-class ArSysViewer : public ar_sys {
+class ArSysViewer : public ARSYS {
 private:
     std::string map_path;
     std::map<std::string, board_t> boards_map;
@@ -62,7 +62,7 @@ private:
 public:
 
     ArSysViewer()
-    : ar_sys(), nh("~") {
+    : ARSYS(), nh("~") {
         transform_sub = nh.subscribe("/transform", 1, &ArSysViewer::transform_callback, this);
 
         transform_pub = nh.advertise<geometry_msgs::TransformStamped>("transform", 100);

@@ -24,6 +24,8 @@
 #include <tf/transform_listener.h>
 
 #include <ar_sys/utils.h>
+#include <ar_sys/ArucoCornerMsg.h>
+#include <ar_sys/OneMarker.h>
 
 namespace cv {
     namespace aruco {
@@ -86,13 +88,12 @@ namespace cv {
     }
 }
 
-class ArSysSingleBoard : public ar_sys {
+class ArSysSingleBoard : public ARSYS {
 private:
     cv::Mat inImage, resultImg;
     //aruco::CameraParameters camParam;
     bool useRectifiedImages;
     bool draw_markers;
-    bool draw_markers_cube;
     bool draw_markers_axis;
     bool publish_tf;
     ros::Subscriber cam_info_sub;
@@ -102,11 +103,19 @@ private:
     ros::Publisher pose_pub;
     ros::Publisher transform_pub;
     ros::Publisher position_pub;
+    ros::Publisher corner_pub;
     std::string board_frame;
     int nMarkers, nMarkerDetectThreshold;
     double marker_size_m;
     std::string board_config;
     double board_scale;
+    std::vector< cv::Mat > idcorners;
+    std::vector< cv::Mat > idcornerspx;
+    std::vector< float> board_ids;
+
+    ar_sys::ArucoCornerMsg cornerMsg;
+    ar_sys::OneMarker PixelMsg;
+    ar_sys::OneMarker MetricMsg;
 
     ros::NodeHandle nh;
     image_transport::ImageTransport it;
@@ -120,7 +129,7 @@ private:
 
 public:
 
-    ArSysSingleBoard() : ar_sys(), cam_info_received(false),
+    ArSysSingleBoard() : ARSYS(), cam_info_received(false),
     nh("~"),
     it(nh), nMarkers(0), nMarkerDetectThreshold(0) {
         image_sub = it.subscribe("/image", 1, &ArSysSingleBoard::image_callback, this);
@@ -131,13 +140,13 @@ public:
         pose_pub = nh.advertise<geometry_msgs::PoseStamped>("pose", 100);
         transform_pub = nh.advertise<geometry_msgs::TransformStamped>("transform", 100);
         position_pub = nh.advertise<geometry_msgs::Vector3Stamped>("position", 100);
+        corner_pub = nh.advertise<ar_sys::ArucoCornerMsg>("corner",100);
 
         nh.param<double>("marker_size", marker_size_m, 0.05);
         nh.param<std::string>("board_config", board_config, "boardConfiguration.yml");
         nh.param<std::string>("board_frame", board_frame, "");
         nh.param<bool>("image_is_rectified", useRectifiedImages, true);
         nh.param<bool>("draw_markers", draw_markers, false);
-        nh.param<bool>("draw_markers_cube", draw_markers_cube, false);
         nh.param<bool>("draw_markers_axis", draw_markers_axis, false);
         nh.param<bool>("publish_tf", publish_tf, false);
 
@@ -170,21 +179,21 @@ public:
         cv::Mat markers;
         cv::FileNode nmarkers = fs["aruco_bc_nmarkers"];
         cv::read(nmarkers, nMarkers, 0);
-        //std::cout << "nmarkers " << nMarkers << std::endl;
+        std::cout << "nmarkers " << nMarkers << std::endl;
         cv::FileNode minfotype = fs["aruco_bc_mInfoType"];
         cv::read(minfotype, mInfoType, 0);
         cv::FileNode markersnode = fs["aruco_bc_markers"];
         cv::FileNodeIterator it = markersnode.begin(), it_end = markersnode.end();
         int idx = 0, idx2;
         float id, lenX, lenY, lenZ, markerSideLength_pixels;
-        std::vector< float> ids;
+
         std::vector< std::vector<float> > cornervals;
-        std::vector< cv::Mat > idcorners;
+
         // iterate through a sequence using FileNodeIterator
         for (; it != it_end; ++it, idx++) {
             (*it)["id"] >> id;
-            ids.push_back(id);
-            //std::cout << "id " << id << std::endl;
+            board_ids.push_back(id);
+            std::cout << "id " << id << std::endl;
             (*it)["corners"] >> cornervals;
             cv::Mat markercorners = cv::Mat::zeros(1, 4, CV_32FC3);
             for (int i = 0; i < (int) cornervals.size(); i++) {
@@ -196,21 +205,23 @@ public:
                     lenY = fabs(markercorners.at<cv::Vec3f>(0, 0)[1] - markercorners.at<cv::Vec3f>(0, 1)[1]);
                     lenZ = fabs(markercorners.at<cv::Vec3f>(0, 0)[2] - markercorners.at<cv::Vec3f>(0, 1)[2]);
                     markerSideLength_pixels = std::max(lenZ, std::max(lenX, lenY));
-                    //std::cout << "markerSideLength = " << markerSideLength_pixels << std::endl;
+//                    std::cout << "markerSideLength = " << markerSideLength_pixels << std::endl;
                 }
             }
-            //std::cout << "id " << idx << " corners " << markercorners << std::endl;
+            idcornerspx.push_back(markercorners);
+            std::cout << "id " << idx << " corners " << markercorners << std::endl;
             markercorners *= marker_size_m / markerSideLength_pixels; // convert to m
             idcorners.push_back(markercorners);
         }
         board_scale = sqrt(nMarkers / 2);
-        //for (cv::Mat cornerVals : idcorners) 
-        //        std::cout << "id corners " << cornerVals << std::endl;
-        board = cv::aruco::Board::create(idcorners, dictionary, ids);
+        for (cv::Mat cornerVals : idcorners)
+                std::cout << "id corners " << cornerVals << std::endl;
+        board = cv::aruco::Board::create(idcorners, dictionary, board_ids);
     }
 
     void image_callback(const sensor_msgs::ImageConstPtr& msg) {
         static tf::TransformBroadcaster br;
+        cornerMsg.header = msg->header;
 
         if (!cam_info_received) return;
 
@@ -239,9 +250,6 @@ public:
             if (ids.size() <= nMarkerDetectThreshold) {
                 return;
             }
-            //            markersOfBoardDetected =
-            //                    cv::aruco::estimatePoseBoardCustom(corners, ids, board, cameraMatrix, distortionCoeffs, rvec, tvec);
-            //std::cout << "rvec_guess " << rvec << " tvec_guess " << tvec << std::endl;
             markersOfBoardDetected =
                     cv::aruco::estimatePoseBoardCustom(corners, ids, board, cameraMatrix, distortionCoeffs, rvec, tvec, true);
 
@@ -249,16 +257,42 @@ public:
             cv::Rodrigues(rvec, rotMat);
             cv::Mat eZ = (cv::Mat_<double>(3, 1) << 0.0, 0.0, 1.0);
             cv::Mat eZ_prime = rotMat*eZ;
-            //std::cout << "rvec " << rvec << " tvec " << tvec << " eZ_prime " << eZ_prime << std::endl;
-            //            std::cout << "det(rotMat) " << cv::determinant(rotMat) << std::endl;
-            //            std::cout << "x " << rotMat.row(0) << std::endl;
-            //            std::cout << "y " << rotMat.row(1) << std::endl;
-            //            std::cout << "z " << rotMat.row(2) << std::endl;
             if (tvec[2] < 0) {
                 std::cout << "cv::solvePnP converged to invalid transform translation z = " << tvec[2] <<
                         " when, in reality we must assert, z > 0." << std::endl;
                 return;
             }
+
+            for (int i = 0; i < (int) ids.size(); i++){
+                if( index < 0 || index > board_ids.size()-1)
+                    return;
+
+                PixelMsg.id = ids[i];
+                PixelMsg.top_left.x = corners[i][0].x;
+                PixelMsg.top_left.y = corners[i][0].y;
+                PixelMsg.top_right.x = corners[i][1].x;
+                PixelMsg.top_right.y = corners[i][1].y;
+                PixelMsg.bottom_right.x = corners[i][2].x;
+                PixelMsg.bottom_right.y = corners[i][2].y;
+                PixelMsg.bottom_left.x = corners[i][3].x;
+                PixelMsg.bottom_left.y = corners[i][3].y;
+
+                cornerMsg.pixel_corners.push_back(PixelMsg);
+
+                MetricMsg.id = ids[i];
+                MetricMsg.top_left.x = idcornerspx.at(index).at<cv::Vec3f>(0, 0)[0];
+                MetricMsg.top_left.y = idcornerspx.at(index).at<cv::Vec3f>(0, 0)[1];
+                MetricMsg.top_right.x = idcornerspx.at(index).at<cv::Vec3f>(0, 1)[0];
+                MetricMsg.top_right.y = idcornerspx.at(index).at<cv::Vec3f>(0, 1)[1];
+                MetricMsg.bottom_right.x = idcornerspx.at(index).at<cv::Vec3f>(0, 2)[0];
+                MetricMsg.bottom_right.y = idcornerspx.at(index).at<cv::Vec3f>(0, 2)[1];
+                MetricMsg.bottom_left.x = idcornerspx.at(index).at<cv::Vec3f>(0, 3)[0];
+                MetricMsg.bottom_left.y = idcornerspx.at(index).at<cv::Vec3f>(0, 3)[1];
+
+                cornerMsg.metric_corners.push_back(MetricMsg);
+            }
+            corner_pub.publish(cornerMsg);
+
             if (eZ_prime.at<double>(2,0) > 0) {
                 // flip y and z
                 rotMat.at<double>(0, 1) *= -1.0;
@@ -284,13 +318,7 @@ public:
                 }
                 eZ = (cv::Mat_<double>(3, 1) << 0.0, 0.0, 1.0);
                 eZ_prime = rotMat*eZ;
-                //std::cout << "rvec_mod " << rvec << " tvec_mod " << tvec << " eZ_prime_mod " << eZ_prime << std::endl;
                 cv::Rodrigues(rotMat, rvec);
-                //                std::cout << "det(rotMat_mod) " << cv::determinant(rotMat) << std::endl;
-                //                std::cout << "rvec_mod " << rvec << " tvec_mod " << tvec << std::endl;
-                //                std::cout << "x_mod " << rotMat.row(0) << std::endl;
-                //                std::cout << "y_mod " << rotMat.row(1) << std::endl;
-                //                std::cout << "z_mod " << rotMat.row(2) << std::endl;
             }
 
 

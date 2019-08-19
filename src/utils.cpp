@@ -13,7 +13,7 @@
 
 #include <ar_sys/utils.h>
 
-void ar_sys::getCamParams(const sensor_msgs::CameraInfo& cam_info,
+void ARSYS::getCamParams(const sensor_msgs::CameraInfo& cam_info,
         bool useRectifiedParameters) {
     cameraMatrix = cv::Mat::zeros(3, 3, CV_32FC1);
     distortionCoeffs = cv::Mat::zeros(5, 1, CV_32FC1);
@@ -44,7 +44,7 @@ void ar_sys::getCamParams(const sensor_msgs::CameraInfo& cam_info,
     }
 }
 
-bool ar_sys::getTf(const cv::Vec3d &rvec, const cv::Vec3d &tvec, tf::Transform &tfVal) {
+bool ARSYS::getTf(const cv::Vec3d &rvec, const cv::Vec3d &tvec, tf::Transform &tfVal) {
     //cv::Mat rot(3, 3, CV_32FC1);
     cv::Mat rot;
     cv::Rodrigues(rvec, rot);

@@ -33,7 +33,7 @@ struct board_t {
     double marker_size;
 };
 
-class ArSysMultiBoards : public ar_sys {
+class ArSysMultiBoards : public ARSYS {
 private:
     cv::Mat inImage, resultImg;
     //aruco::CameraParameters camParam;    
@@ -67,7 +67,7 @@ private:
 public:
 
     ArSysMultiBoards() :
-    ar_sys(), cam_info_received(false),
+            ARSYS(), cam_info_received(false),
     nh("~"),
     it(nh) {
         image_sub = it.subscribe("/image", 1, &ArSysMultiBoards::image_callback, this);
