@@ -96,6 +96,7 @@ private:
     bool draw_markers;
     bool draw_markers_axis;
     bool publish_tf;
+    bool publish_corners;
     ros::Subscriber cam_info_sub;
     bool cam_info_received;
     image_transport::Publisher image_pub;
@@ -149,6 +150,7 @@ public:
         nh.param<bool>("draw_markers", draw_markers, false);
         nh.param<bool>("draw_markers_axis", draw_markers_axis, false);
         nh.param<bool>("publish_tf", publish_tf, false);
+        nh.param<bool>("publish_corners", publish_corners, false);
 
         cv::aruco::PREDEFINED_DICTIONARY_NAME dictionaryId = cv::aruco::DICT_ARUCO_ORIGINAL;
         dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::PREDEFINED_DICTIONARY_NAME(dictionaryId));
@@ -263,35 +265,37 @@ public:
                 return;
             }
 
-            for (int i = 0; i < (int) ids.size(); i++){
-                if( index < 0 || index > board_ids.size()-1)
-                    return;
+            if(publish_corners){
+                for (int i = 0; i < (int) ids.size(); i++){
+                    if( index < 0 || index > board_ids.size()-1)
+                        return;
 
-                PixelMsg.id = ids[i];
-                PixelMsg.top_left.x = corners[i][0].x;
-                PixelMsg.top_left.y = corners[i][0].y;
-                PixelMsg.top_right.x = corners[i][1].x;
-                PixelMsg.top_right.y = corners[i][1].y;
-                PixelMsg.bottom_right.x = corners[i][2].x;
-                PixelMsg.bottom_right.y = corners[i][2].y;
-                PixelMsg.bottom_left.x = corners[i][3].x;
-                PixelMsg.bottom_left.y = corners[i][3].y;
+                    PixelMsg.id = ids[i];
+                    PixelMsg.top_left.x = corners[i][0].x;
+                    PixelMsg.top_left.y = corners[i][0].y;
+                    PixelMsg.top_right.x = corners[i][1].x;
+                    PixelMsg.top_right.y = corners[i][1].y;
+                    PixelMsg.bottom_right.x = corners[i][2].x;
+                    PixelMsg.bottom_right.y = corners[i][2].y;
+                    PixelMsg.bottom_left.x = corners[i][3].x;
+                    PixelMsg.bottom_left.y = corners[i][3].y;
 
-                cornerMsg.pixel_corners.push_back(PixelMsg);
+                    cornerMsg.pixel_corners.push_back(PixelMsg);
 
-                MetricMsg.id = ids[i];
-                MetricMsg.top_left.x = idcornerspx.at(index).at<cv::Vec3f>(0, 0)[0];
-                MetricMsg.top_left.y = idcornerspx.at(index).at<cv::Vec3f>(0, 0)[1];
-                MetricMsg.top_right.x = idcornerspx.at(index).at<cv::Vec3f>(0, 1)[0];
-                MetricMsg.top_right.y = idcornerspx.at(index).at<cv::Vec3f>(0, 1)[1];
-                MetricMsg.bottom_right.x = idcornerspx.at(index).at<cv::Vec3f>(0, 2)[0];
-                MetricMsg.bottom_right.y = idcornerspx.at(index).at<cv::Vec3f>(0, 2)[1];
-                MetricMsg.bottom_left.x = idcornerspx.at(index).at<cv::Vec3f>(0, 3)[0];
-                MetricMsg.bottom_left.y = idcornerspx.at(index).at<cv::Vec3f>(0, 3)[1];
+                    MetricMsg.id = ids[i];
+                    MetricMsg.top_left.x = idcornerspx.at(index).at<cv::Vec3f>(0, 0)[0];
+                    MetricMsg.top_left.y = idcornerspx.at(index).at<cv::Vec3f>(0, 0)[1];
+                    MetricMsg.top_right.x = idcornerspx.at(index).at<cv::Vec3f>(0, 1)[0];
+                    MetricMsg.top_right.y = idcornerspx.at(index).at<cv::Vec3f>(0, 1)[1];
+                    MetricMsg.bottom_right.x = idcornerspx.at(index).at<cv::Vec3f>(0, 2)[0];
+                    MetricMsg.bottom_right.y = idcornerspx.at(index).at<cv::Vec3f>(0, 2)[1];
+                    MetricMsg.bottom_left.x = idcornerspx.at(index).at<cv::Vec3f>(0, 3)[0];
+                    MetricMsg.bottom_left.y = idcornerspx.at(index).at<cv::Vec3f>(0, 3)[1];
 
-                cornerMsg.metric_corners.push_back(MetricMsg);
+                    cornerMsg.metric_corners.push_back(MetricMsg);
+                }
+                corner_pub.publish(cornerMsg);
             }
-            corner_pub.publish(cornerMsg);
 
             if (eZ_prime.at<double>(2,0) > 0) {
                 // flip y and z
