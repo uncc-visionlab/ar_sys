@@ -141,7 +141,7 @@ public:
         pose_pub = nh.advertise<geometry_msgs::PoseStamped>("pose", 100);
         transform_pub = nh.advertise<geometry_msgs::TransformStamped>("transform", 100);
         position_pub = nh.advertise<geometry_msgs::Vector3Stamped>("position", 100);
-        corner_pub = nh.advertise<ar_sys::ArucoCornerMsg>("corner",100);
+
 
         nh.param<double>("marker_size", marker_size_m, 0.05);
         nh.param<std::string>("board_config", board_config, "boardConfiguration.yml");
@@ -151,6 +151,9 @@ public:
         nh.param<bool>("draw_markers_axis", draw_markers_axis, false);
         nh.param<bool>("publish_tf", publish_tf, false);
         nh.param<bool>("publish_corners", publish_corners, false);
+
+        if(publish_corners)
+            corner_pub = nh.advertise<ar_sys::ArucoCornerMsg>("corner",100);
 
         cv::aruco::PREDEFINED_DICTIONARY_NAME dictionaryId = cv::aruco::DICT_ARUCO_ORIGINAL;
         dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::PREDEFINED_DICTIONARY_NAME(dictionaryId));
@@ -265,9 +268,12 @@ public:
                 return;
             }
 
-            if(publish_corners){
-                for (int i = 0; i < (int) ids.size(); i++){
-                    if( index < 0 || index > board_ids.size()-1)
+            if (publish_corners)
+            {
+                for (int i = 0; i < (int) ids.size(); i++)
+                {
+                    int index = std::distance(board_ids.begin(), std::find (board_ids.begin(), board_ids.end(), ids[i]));
+                    if ( index < 0 || index > board_ids.size()-1)
                         return;
 
                     PixelMsg.id = ids[i];

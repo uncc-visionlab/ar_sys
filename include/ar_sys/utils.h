@@ -46,6 +46,7 @@ public:
      * @return tf::Transform
      */
     bool getTf(const cv::Vec3d &Rvec, const cv::Vec3d &Tvec, tf::Transform &tVal);
+
 protected:
     cv::Size image_size;
     cv::Mat cameraMatrix, distortionCoeffs;
