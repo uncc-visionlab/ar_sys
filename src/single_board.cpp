@@ -155,6 +155,8 @@ public:
         if(publish_corners)
             corner_pub = nh.advertise<ar_sys::ArucoCornerMsg>("corner",100);
 
+        ROS_WARN_STREAM("Publishing Corners");
+
         cv::aruco::PREDEFINED_DICTIONARY_NAME dictionaryId = cv::aruco::DICT_ARUCO_ORIGINAL;
         dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::PREDEFINED_DICTIONARY_NAME(dictionaryId));
         detectorParams = cv::aruco::DetectorParameters::create();
@@ -210,11 +212,9 @@ public:
                     lenY = fabs(markercorners.at<cv::Vec3f>(0, 0)[1] - markercorners.at<cv::Vec3f>(0, 1)[1]);
                     lenZ = fabs(markercorners.at<cv::Vec3f>(0, 0)[2] - markercorners.at<cv::Vec3f>(0, 1)[2]);
                     markerSideLength_pixels = std::max(lenZ, std::max(lenX, lenY));
-//                    std::cout << "markerSideLength = " << markerSideLength_pixels << std::endl;
                 }
             }
             idcornerspx.push_back(markercorners);
-            std::cout << "id " << idx << " corners " << markercorners << std::endl;
             markercorners *= marker_size_m / markerSideLength_pixels; // convert to m
             idcorners.push_back(markercorners);
         }
@@ -274,8 +274,7 @@ public:
                 {
                     int index = std::distance(board_ids.begin(), std::find (board_ids.begin(), board_ids.end(), ids[i]));
                     if ( index < 0 || index > board_ids.size()-1)
-                        return;
-
+                        continue;
                     PixelMsg.id = ids[i];
                     PixelMsg.top_left.x = corners[i][0].x;
                     PixelMsg.top_left.y = corners[i][0].y;

@@ -15,10 +15,11 @@
     <arg name="result_display" default="true"/>
     <arg name="result_autosize" default="true"/>
     <arg name="result_draw_markers" default="true" />
+    <arg name="publish_corners" default="true" />
     <arg name="result_draw_markers_axis" default="true" />
     <arg name="uid" default=""/>
     <arg name="video_rectified" default="false" />
-    <arg name="board_config" default="$(find ar_sys)/data/single/pose_calib_00.yml" />
+    <arg name="board_config" default="$(find ar_sys)/data/single/pose_calib_test.yml" />
     <arg name="board_frame_id" default="ar_calib_frame" />
     <arg name="marker_size" default="0.035" />
     <arg name="publish_tf" default="false" />
@@ -34,9 +35,11 @@
         <param name="draw_markers" type="bool" value="$(arg result_draw_markers)" />
         <param name="draw_markers_axis" type="bool" value="$(arg result_draw_markers_axis)" />
         <param name="publish_tf" value="$(arg publish_tf)" />
+        <param name="publish_corners" value="$(arg publish_corners)" />
     </node>
     <group if="$(arg result_display)">
         <node ns="/" pkg="image_view" type="image_view" name="image_view$(arg uid)" output="screen">
+<!--            <remap from="image" to="/camera/rgb/image_raw" />-->
             <remap from="image" to="/ar_single_board/result" />
             <param name="autosize" type="bool" value="$(arg result_autosize)" />
         </node>
