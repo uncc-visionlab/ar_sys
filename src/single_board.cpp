@@ -155,7 +155,7 @@ public:
         if(publish_corners)
             corner_pub = nh.advertise<ar_sys::ArucoCornerMsg>("corner",100);
 
-        ROS_WARN_STREAM("Publishing Corners");
+        ROS_WARN_STREAM(board_config);
 
         cv::aruco::PREDEFINED_DICTIONARY_NAME dictionaryId = cv::aruco::DICT_ARUCO_ORIGINAL;
         dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::PREDEFINED_DICTIONARY_NAME(dictionaryId));
@@ -172,7 +172,6 @@ public:
         detectorParams->cornerRefinementWinSize = 10; // do corner refinement in markers
         detectorParams->cornerRefinementMaxIterations = 30; // do corner refinement in markers
 
-        //the_board_config.readFromFile(board_config.c_str());
         readBoard();
         int minMarkers = std::min(4, nMarkers);
         nMarkerDetectThreshold = std::max(minMarkers, nMarkers / 2);
@@ -181,6 +180,8 @@ public:
     }
 
     void readBoard() {
+
+        ROS_WARN_STREAM("Board Config dir is \t" << board_config);
         cv::FileStorage fs(board_config, cv::FileStorage::READ);
         float mInfoType;
         cv::Mat markers;
@@ -290,12 +291,16 @@ public:
                     MetricMsg.id = ids[i];
                     MetricMsg.top_left.x = idcornerspx.at(index).at<cv::Vec3f>(0, 0)[0];
                     MetricMsg.top_left.y = idcornerspx.at(index).at<cv::Vec3f>(0, 0)[1];
+                    MetricMsg.top_left.z = idcornerspx.at(index).at<cv::Vec3f>(0, 0)[2];
                     MetricMsg.top_right.x = idcornerspx.at(index).at<cv::Vec3f>(0, 1)[0];
                     MetricMsg.top_right.y = idcornerspx.at(index).at<cv::Vec3f>(0, 1)[1];
+                    MetricMsg.top_right.z = idcornerspx.at(index).at<cv::Vec3f>(0, 1)[2];
                     MetricMsg.bottom_right.x = idcornerspx.at(index).at<cv::Vec3f>(0, 2)[0];
                     MetricMsg.bottom_right.y = idcornerspx.at(index).at<cv::Vec3f>(0, 2)[1];
+                    MetricMsg.bottom_right.z = idcornerspx.at(index).at<cv::Vec3f>(0, 2)[2];
                     MetricMsg.bottom_left.x = idcornerspx.at(index).at<cv::Vec3f>(0, 3)[0];
                     MetricMsg.bottom_left.y = idcornerspx.at(index).at<cv::Vec3f>(0, 3)[1];
+                    MetricMsg.bottom_left.z = idcornerspx.at(index).at<cv::Vec3f>(0, 3)[2];
 
                     cornerMsg.metric_corners.push_back(MetricMsg);
                 }
