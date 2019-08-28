@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <launch>
+    <arg name="record_bag" default="true"/>
+    <arg name="bag_name" default="test"/>
     <arg name="driver_astra" value="false"/>
     <arg name="driver_openni2" value="true"/>
 
@@ -44,4 +46,6 @@
             <param name="autosize" type="bool" value="$(arg result_autosize)" />
         </node>
     </group>
+
+    <node if="$(arg record_bag)" name="record" pkg="rosbag" type="record" args="-O $(arg bag_name) ar_single_board/corner ar_single_board/pose ar_single_board/result camera/rgb/image_raw camera/rgb/camera_info"/>
 </launch>
