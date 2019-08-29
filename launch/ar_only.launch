@@ -25,7 +25,7 @@
     <arg name="board_frame_id" default="ar_calib_frame" />
     <arg name="marker_size" default="0.035" />
     <arg name="publish_tf" default="false" />
-    <node ns="/" pkg="ar_sys" type="single_board" name="ar_single_board$" output="screen">
+    <node ns="/" pkg="ar_sys" type="single_board" name="ar_single_board" output="screen">
         <remap from="/camera_info" to="/camera/rgb/camera_info" if="$(arg driver_astra)"/>
         <remap from="/image" to="/camera/rgb/image_raw" if="$(arg driver_astra)"/>
         <remap from="/camera_info" to="/camera/rgb/camera_info" if="$(arg driver_openni2)"/>
