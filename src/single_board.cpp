@@ -402,6 +402,7 @@ public:
         cam_info_received = true;
         cam_info_sub.shutdown();
     }
+
 };
 
 int main(int argc, char **argv) {
