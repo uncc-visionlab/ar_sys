@@ -114,10 +114,6 @@ private:
     std::vector< cv::Mat > idcornerspx;
     std::vector< float> board_ids;
 
-    ar_sys::ArucoCornerMsg cornerMsg;
-    ar_sys::OneMarker PixelMsg;
-    ar_sys::OneMarker MetricMsg;
-
     ros::NodeHandle nh;
     image_transport::ImageTransport it;
     image_transport::Subscriber image_sub;
@@ -155,8 +151,6 @@ public:
         if(publish_corners)
             corner_pub = nh.advertise<ar_sys::ArucoCornerMsg>("corner",100);
 
-        ROS_WARN_STREAM(board_config);
-
         cv::aruco::PREDEFINED_DICTIONARY_NAME dictionaryId = cv::aruco::DICT_ARUCO_ORIGINAL;
         dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::PREDEFINED_DICTIONARY_NAME(dictionaryId));
         detectorParams = cv::aruco::DetectorParameters::create();
@@ -180,8 +174,6 @@ public:
     }
 
     void readBoard() {
-
-        ROS_WARN_STREAM("Board Config dir is \t" << board_config);
         cv::FileStorage fs(board_config, cv::FileStorage::READ);
         float mInfoType;
         cv::Mat markers;
@@ -227,7 +219,7 @@ public:
 
     void image_callback(const sensor_msgs::ImageConstPtr& msg) {
         static tf::TransformBroadcaster br;
-        cornerMsg.header = msg->header;
+
 
         if (!cam_info_received) return;
 
@@ -271,6 +263,11 @@ public:
 
             if (publish_corners)
             {
+                ar_sys::ArucoCornerMsg cornerMsg;
+                ar_sys::OneMarker PixelMsg;
+                ar_sys::OneMarker MetricMsg;
+                cornerMsg.header = msg->header;
+
                 for (int i = 0; i < (int) ids.size(); i++)
                 {
                     int index = std::distance(board_ids.begin(), std::find (board_ids.begin(), board_ids.end(), ids[i]));

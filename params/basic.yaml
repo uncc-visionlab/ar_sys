@@ -4,7 +4,7 @@ ar_single_board: {
                    publish_corners: true,
                    result_draw_markers_axis: true,
                    video_rectified: false,
-                   board_config: "/home/prashant/pose_calib_test.yaml",
+                   board_config: "/home/prashant/ar_sys_ws/src/ar_sys/data/single/pose_calib_test.yaml",
                    board_frame_id: "ar_calib_frame",
                    marker_size: 0.035
 }
