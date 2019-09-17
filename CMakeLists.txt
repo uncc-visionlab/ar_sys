@@ -53,12 +53,12 @@ include_directories(
 ## Declare a cpp library
 add_executable(single_board src/single_board.cpp
 	src/utils.cpp)
-add_dependencies(single_board ${catkin_EXPORTED_TARGETS})
+add_dependencies(single_board ${catkin_EXPORTED_TARGETS} ar_sys_generate_messages_cpp)
 target_link_libraries(single_board ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 
 add_executable(multi_boards src/multi_boards.cpp
 	src/utils.cpp)
-add_dependencies(multi_boards ${catkin_EXPORTED_TARGETS})
+add_dependencies(multi_boards ${catkin_EXPORTED_TARGETS} ar_sys_generate_messages_cpp)
 target_link_libraries(multi_boards ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 
 add_executable(system_viewer src/system_viewer.cpp)
