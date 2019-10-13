@@ -3,10 +3,10 @@
     <arg name="run_rviz" default="true"/>
 
     <!-- select sensor driver -->
-    <arg name="driver_usb_cam" value="false"/>
+    <arg name="driver_usb_cam" value="true"/>
     <arg name="driver_cv_camera" value="false"/>
     <arg name="driver_openni2" value="false"/>
-    <arg name="driver_astra" value="true"/>
+    <arg name="driver_astra" value="false"/>
     
     <!-- parameters for image_view node -->
     <arg name="result_display" default="true"/>
@@ -30,17 +30,25 @@
     <!-- launch sensor drive -->
     <node name="usb_cam" pkg="usb_cam" type="usb_cam_node" output="screen" 
           if="$(arg driver_usb_cam)">
-        <param name="video_device" value="/dev/video0" />
-        <param name="image_width" value="640" />
+        <param name="video_device" value="/dev/video1" />
+        <!--<param name="image_width" value="640" />
         <param name="image_height" value="480" />
-        <param name="pixel_format" value="yuyv" />
+        <param name="pixel_format" value="yuyv" />-->
         <param name="camera_frame_id" value="usb_cam" />
         <param name="io_method" value="mmap"/>
     </node>     
 
     <node name="cv_camera_node" pkg="cv_camera" type="cv_camera_node" 
-          output="screen" if="$(arg driver_cv_camera)"/>    
-
+          output="screen" if="$(arg driver_cv_camera)">    
+        <!-- <param name="rate" value="30"/> -->
+        <param name="device_id" value="1"/>
+        <param name="frame_id" value="camera"/>
+        <!--
+        <param image_width="XX"/>
+        <param image_height="YY"/>
+        <param file=""/>
+         -->
+     </node>
     <group if="$(arg driver_openni2)">
         <include file="$(find openni2_launch)/launch/openni2.launch"/>
     </group>

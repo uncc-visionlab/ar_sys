@@ -9,6 +9,8 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <vector>
+#include <algorithm>
 
 #include <ros/ros.h>
 #include <image_transport/image_transport.h>
@@ -148,11 +150,11 @@ public:
 #ifdef OPENCV_3_2
         detectorParams->doCornerRefinement = true; // do corner refinement in markers
 #endif
-        
+
 #ifdef OPENCV_3_3
         detectorParams->cornerRefinementMethod = cv::aruco::CORNER_REFINE_SUBPIX;
 #endif
-        
+
         detectorParams->cornerRefinementWinSize = 10; // do corner refinement in markers
         detectorParams->cornerRefinementMaxIterations = 30; // do corner refinement in markers
 
@@ -219,7 +221,7 @@ public:
             cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::RGB8);
             inImage = cv_ptr->image;
 
-            bool refindStrategy = false;
+            bool refindStrategy = true;
             std::vector< int > ids;
             std::vector< std::vector< cv::Point2f > > corners, rejected;
             cv::Vec3d tvec(0, 0, 1);
@@ -238,6 +240,34 @@ public:
             int markersOfBoardDetected = 0;
             if (ids.size() <= nMarkerDetectThreshold) {
                 return;
+            }
+            bool DEBUG = false;
+            if (DEBUG) {
+                std::cout << "Found " << ids.size() << " corners: " << std::endl;
+                std::cout << "ids : ";
+                std::vector< std::pair<int, int > > id_index;
+                int idx = 0;
+                for (std::vector<int>::iterator it = ids.begin(); it < ids.end(); it++, idx++) {
+                    id_index.push_back(std::make_pair(*it, idx));
+                }
+                std::sort(id_index.begin(), id_index.end());
+                for (std::vector<std::pair<int, int> >::iterator it = id_index.begin(); it < id_index.end(); it++) {
+                    std::cout << (*it).first << " ";
+                }
+                for (std::vector<int>::iterator it = ids.begin(); it < ids.end(); it++) {
+                    //std::cout << *it << " ";
+                }
+                std::cout << std::endl;
+                idx = 0;
+                for (std::vector<std::pair<int, int> >::iterator it1 = id_index.begin(); it1 < id_index.end(); it1++, idx++) {
+                    std::cout << "marker " << (*it1).first << " : ";
+                    std::vector<cv::Point2f>& cval = corners[(*it1).second];
+                    for (std::vector<cv::Point2f>::iterator it2 = cval.begin(); it2 < cval.end(); it2++) {
+                        std::cout << *it2 << " ";
+                    }
+                    std::cout << std::endl;
+                }
+                std::cout << std::endl;
             }
             //            markersOfBoardDetected =
             //                    cv::aruco::estimatePoseBoardCustom(corners, ids, board, cameraMatrix, distortionCoeffs, rvec, tvec);
@@ -259,7 +289,7 @@ public:
                         " when, in reality we must assert, z > 0." << std::endl;
                 return;
             }
-            if (eZ_prime.at<double>(2,0) > 0) {
+            if (eZ_prime.at<double>(2, 0) > 0) {
                 // flip y and z
                 rotMat.at<double>(0, 1) *= -1.0;
                 rotMat.at<double>(1, 1) *= -1.0;
@@ -269,7 +299,7 @@ public:
                 rotMat.at<double>(2, 2) *= -1.0;
                 eZ = (cv::Mat_<double>(3, 1) << 0.0, 0.0, 1.0);
                 eZ_prime = rotMat*eZ;
-                if (eZ_prime.at<double>(2,0) > 0) {
+                if (eZ_prime.at<double>(2, 0) > 0) {
                     // flip y again 
                     rotMat.at<double>(0, 1) *= -1.0;
                     rotMat.at<double>(1, 1) *= -1.0;
@@ -300,8 +330,9 @@ public:
             if (!validTransform) {
                 return;
             }
-
-            tf::StampedTransform stampedTransform(transform, msg->header.stamp, msg->header.frame_id, board_frame);
+            std::cout << "Published " << board_frame << " --> " << msg->header.frame_id << " transform." << std::endl;
+            //tf::StampedTransform stampedTransform(transform.inverse(), msg->header.stamp, msg->header.frame_id, board_frame);
+            tf::StampedTransform stampedTransform(transform.inverse(), msg->header.stamp, board_frame, msg->header.frame_id);
 
             if (publish_tf)
                 br.sendTransform(stampedTransform);
