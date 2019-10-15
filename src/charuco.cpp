@@ -17,6 +17,7 @@
 #include <cv_bridge/cv_bridge.h>
 
 #include <opencv2/aruco.hpp>
+#include <opencv2/aruco/charuco.hpp>
 #include <opencv2/core.hpp>
 #include <opencv2/calib3d.hpp>
 
@@ -122,7 +123,7 @@ private:
 
     cv::Ptr<cv::aruco::Dictionary> dictionary;
     cv::Ptr<cv::aruco::DetectorParameters> detectorParams;
-    cv::Ptr<cv::aruco::Board> board;
+    cv::Ptr<cv::aruco::CharucoBoard> board;
 
 public:
 
@@ -151,7 +152,8 @@ public:
         if(publish_corners)
             corner_pub = nh.advertise<ar_sys::ArucoCornerMsg>("corner",100);
 
-        cv::aruco::PREDEFINED_DICTIONARY_NAME dictionaryId = cv::aruco::DICT_ARUCO_ORIGINAL;
+        cv::aruco::PREDEFINED_DICTIONARY_NAME dictionaryId = cv::aruco::DICT_4X4_50;
+
         dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::PREDEFINED_DICTIONARY_NAME(dictionaryId));
         detectorParams = cv::aruco::DetectorParameters::create();
 
@@ -166,14 +168,17 @@ public:
         detectorParams->cornerRefinementWinSize = 10; // do corner refinement in markers
         detectorParams->cornerRefinementMaxIterations = 30; // do corner refinement in markers
 
-        readBoard();
+        //readBoard();
+        board = cv::aruco::CharucoBoard::create(6,4,.05,.025,dictionary);
+        nMarkers = 24;
         int minMarkers = std::min(4, nMarkers);
         nMarkerDetectThreshold = std::max(minMarkers, nMarkers / 2);
-        ROS_INFO("ArSys node started with marker size of %f m and board configuration: %s",
-                marker_size_m, board_config.c_str());
+        /*ROS_INFO("ArSys node started with marker size of %f m and board configuration: %s",
+                marker_size_m, board_config.c_str());*/
     }
 
     void readBoard() {
+        /*
         cv::FileStorage fs(board_config, cv::FileStorage::READ);
         float mInfoType;
         cv::Mat markers;
@@ -215,6 +220,7 @@ public:
         for (cv::Mat cornerVals : idcorners)
                 std::cout << "id corners " << cornerVals << std::endl;
         board = cv::aruco::Board::create(idcorners, dictionary, board_ids);
+        */
     }
 
     void image_callback(const sensor_msgs::ImageConstPtr& msg) {
@@ -248,9 +254,12 @@ public:
             if (ids.size() <= nMarkerDetectThreshold) {
                 return;
             }
-            markersOfBoardDetected =
-                    cv::aruco::estimatePoseBoardCustom(corners, ids, board, cameraMatrix, distortionCoeffs, rvec, tvec, true);
-
+            /*markersOfBoardDetected =
+                    cv::aruco::estimatePoseBoardCustom(corners, ids, board, cameraMatrix, distortionCoeffs, rvec, tvec, true);*/
+            std::vector<cv::Point2f> charucoCorners;
+            std::vector<int> charucoIds;
+            cv::aruco::interpolateCornersCharuco(corners, ids, inImage, board, charucoCorners, charucoIds, cameraMatrix, distortionCoeffs);
+            cv::aruco::estimatePoseCharucoBoard(charucoCorners, charucoIds, board, cameraMatrix, distortionCoeffs, rvec, tvec);
             cv::Mat rotMat;
             cv::Rodrigues(rvec, rotMat);
             cv::Mat eZ = (cv::Mat_<double>(3, 1) << 0.0, 0.0, 1.0);

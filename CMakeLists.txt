@@ -56,6 +56,11 @@ add_executable(single_board src/single_board.cpp
 add_dependencies(single_board ${catkin_EXPORTED_TARGETS} ar_sys_generate_messages_cpp)
 target_link_libraries(single_board ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 
+add_executable(charuco src/charuco.cpp
+	src/utils.cpp)
+add_dependencies(charuco ${catkin_EXPORTED_TARGETS} ar_sys_generate_messages_cpp)
+target_link_libraries(charuco ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+
 add_executable(multi_boards src/multi_boards.cpp
 	src/utils.cpp)
 add_dependencies(multi_boards ${catkin_EXPORTED_TARGETS} ar_sys_generate_messages_cpp)
