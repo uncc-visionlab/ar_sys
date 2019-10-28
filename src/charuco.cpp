@@ -169,8 +169,9 @@ public:
         detectorParams->cornerRefinementMaxIterations = 30; // do corner refinement in markers
 
         //readBoard();
-        board = cv::aruco::CharucoBoard::create(6,4,.05,.025,dictionary);
-        nMarkers = 24;
+        board = cv::aruco::CharucoBoard::create(6,4,.035,.0175,dictionary);
+        nMarkers = 12;
+        board_scale = sqrt(nMarkers / 2);
         int minMarkers = std::min(4, nMarkers);
         nMarkerDetectThreshold = std::max(minMarkers, nMarkers / 2);
         /*ROS_INFO("ArSys node started with marker size of %f m and board configuration: %s",
@@ -269,7 +270,6 @@ public:
                         " when, in reality we must assert, z > 0." << std::endl;
                 return;
             }
-
             if (publish_corners)
             {
                 ar_sys::ArucoCornerMsg cornerMsg;
@@ -312,8 +312,7 @@ public:
                 }
                 corner_pub.publish(cornerMsg);
             }
-
- /*           if (eZ_prime.at<double>(2,0) > 0) {
+/*           if (eZ_prime.at<double>(2,0) > 0) {
                 // flip y and z
                 rotMat.at<double>(0, 1) *= -1.0;
                 rotMat.at<double>(1, 1) *= -1.0;
@@ -348,27 +347,21 @@ public:
             if (!validTransform) {
                 return;
             }
-
             tf::StampedTransform stampedTransform(transform, msg->header.stamp, msg->header.frame_id, board_frame);
-
             if (publish_tf)
                 br.sendTransform(stampedTransform);
-
             geometry_msgs::PoseStamped poseMsg;
             tf::poseTFToMsg(transform, poseMsg.pose);
             poseMsg.header.frame_id = msg->header.frame_id;
             poseMsg.header.stamp = msg->header.stamp;
             pose_pub.publish(poseMsg);
-
             geometry_msgs::TransformStamped transformMsg;
             tf::transformStampedTFToMsg(stampedTransform, transformMsg);
             transform_pub.publish(transformMsg);
-
             geometry_msgs::Vector3Stamped positionMsg;
             positionMsg.header = transformMsg.header;
             positionMsg.vector = transformMsg.transform.translation;
             position_pub.publish(positionMsg);
-
             //for each marker, draw info and its boundaries in the image
             //image.copyTo(imageCopy);
             resultImg = cv_ptr->image.clone();
@@ -380,7 +373,6 @@ public:
                 cv::aruco::drawAxis(resultImg, cameraMatrix, distortionCoeffs,
                         rvec, tvec, board_scale * marker_size_m);
             }
-
             if (image_pub.getNumSubscribers() > 0) {
                 //show input with augmented information
                 cv_bridge::CvImage out_msg;
